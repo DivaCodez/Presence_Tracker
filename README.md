@@ -1,4 +1,4 @@
-🏫 Academic Context
+## 🏫 Academic Context
 
 [![FASTAPI](https://img.shields.io/badge/FASTAPI-%23009688.svg?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![STREAMLIT](https://img.shields.io/badge/Streamlit-%23FE4B4B.svg?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io/)
@@ -10,7 +10,7 @@
 
 ---
 
-📖 Repository Overview
+## 📖 Repository Overview
 
 This repository provides a simple, hands-on solution for university roll-call. Instead of manual data entry, the system reads student names aloud via speech synthesis, listens for oral responses through the microphone, and updates attendance status dynamically in a local interface.
 
@@ -23,7 +23,7 @@ This repository provides a simple, hands-on solution for university roll-call. I
    * **FastAPI Backend (`PresenceTracker.py`):** Handles student records, microphone listening loops, and verification logic via REST endpoints.
    * **Streamlit Frontend (`app.py`):** Provides an interactive web dashboard with toggleable manual/automatic modes, live summary metrics, and data export.
 
-🛠️ Technical Summary
+## 🛠️ Technical Summary
 
 | File / Endpoint | Technology | Description |
 | :--- | :--- | :--- |
@@ -31,7 +31,7 @@ This repository provides a simple, hands-on solution for university roll-call. I
 | `GET /students` | FastAPI | Serves the mock student list to the frontend interface. |
 | `app.py` | Streamlit, Pandas | Renders the interactive table, statistics metrics, and triggers API verification requests. |
 
-🚀 Getting Started
+## 🚀 Getting Started
 
 1. Start the FastAPI backend:
    ```bash
