@@ -1,39 +1,39 @@
-## 🏫 Academic Context
+# 🎙️ Smart Presence Tracker
 
-[![FASTAPI](https://img.shields.io/badge/FASTAPI-%23009688.svg?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![STREAMLIT](https://img.shields.io/badge/Streamlit-%23FE4B4B.svg?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io/)
-[![PYTHON](https://img.shields.io/badge/python-3.10%2B-blue.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![STREAMLIT](https://shields.io)](https://streamlit.io)
+[![PYTHON](https://shields.io)](https://python.org)
 
-**Student Status:** Computer Science Student (3rd-Year Licence)  
-**Context:** Personal side project built alongside undergraduate studies to explore practical automation and voice interfaces.  
-**Objective:** Building a lightweight, voice-assisted attendance tool that automates roll-call using speech-to-text (STT) and text-to-speech (TTS), integrated with a FastAPI backend and a Streamlit dashboard.
+A simple tool to speed up taking student attendance using voice recognition and a Streamlit interface.
 
----
+## 💡 Motivation
 
-## 📖 Repository Overview
+Taking attendance manually takes time, especially with larger groups. I wanted to test if speaking the attendance list out loud and letting a script fill out the table could make the process faster while still letting the user review and edit the result.
 
-This repository provides a simple, hands-on solution for university roll-call. Instead of manual data entry, the system reads student names aloud via speech synthesis, listens for oral responses through the microphone, and updates attendance status dynamically in a local interface.
+## 🔄 What Changed From the First Version
 
-🧠 Core Features
-1. **Voice Roll-Call Automation**
-   * **Speech Recognition:** Configured using Python's `speech_recognition` library and Google Speech API (supporting French-Algerian accents `fr-DZ`) to capture "Present" or "Absent" responses.
-   * **Vocal Prompts:** Uses Text-to-Speech (`gTTS`) to call out student names sequentially.
+* **First approach (one-by-one loop):** The initial version read each student's name out loud with text-to-speech (`gTTS`) and waited for a microphone reply after every name. In practice, this was too slow because of the delay between each prompt, and it froze the interface while running.
+* **Current approach (single recording):** Instead of going student by student, you record one audio clip reading the list at your own pace (`st.audio_input`). The app transcribes the recording once, cleans the text (lowercase and no accents), and checks the words right after each student's name to mark them `Present` or `Absent`.
 
-2. **Hybrid Client-Server Architecture**
-   * **FastAPI Backend (`PresenceTracker.py`):** Handles student records, microphone listening loops, and verification logic via REST endpoints.
-   * **Streamlit Frontend (`app.py`):** Provides an interactive web dashboard with toggleable manual/automatic modes, live summary metrics, and data export.
+## 🧠 Features
 
-## 🛠️ Technical Summary
+* **Voice attendance:** Record a single audio clip in the browser and transcribe it with `SpeechRecognition` (French `fr-FR`).
+* **Name and status matching:** Normalizes text and looks near each student's name for keywords (`présent`, `absent`, `oui`, `non`).
+* **Manual mode:** Lets you switch to an editable table (`st.data_editor`) to fix any missed or misheard names before saving.
+* **Summary and CSV export:** Displays counts for `Total`, `Present`, `Absent`, and `Not Marked`, and saves the updated list to `temp_list.csv`.
 
-| File / Endpoint | Technology | Description |
-| :--- | :--- | :--- |
-| `POST /verify` | FastAPI, SpeechRecognition | Triggers the audio prompt for a student, listens to the microphone, and returns the status. |
-| `GET /students` | FastAPI | Serves the mock student list to the frontend interface. |
-| `app.py` | Streamlit, Pandas | Renders the interactive table, statistics metrics, and triggers API verification requests. |
+## 🛠️ Files
 
-## 🚀 Getting Started
+| File | Description |
+| :--- | :--- |
+| `src/app.py` | Streamlit interface, audio input, manual/auto toggle, summary metrics, and CSV saving. |
+| `src/main.py` | Audio transcription, text normalization, and matching logic. |
 
-1. Start the FastAPI backend:
+## 🚀 How to Use
+
+1. Activate your virtual environment and start the app:
    ```bash
-   uvicorn main:app --reload
+   source .venv/bin/activate
+   streamlit run src/app.py
+   ```
+2. Record the attendance list, check the table (or adjust it in **Manual mode**), and click **Save**.
    
