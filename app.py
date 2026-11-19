@@ -1,68 +1,106 @@
-import requests
+import pandas as pd
 import streamlit as st
+from main import students, verify_presence
 
-URL = "http://localhost:8000"
-
-st.title("📚 Mini Bookstore")
-
-# --- LOGIN SIDEBAR ---
-st.sidebar.header("Login")
-username = st.sidebar.text_input("Username")
-password = st.sidebar.text_input("Password", type="password")
-
-token = None
-if st.sidebar.button("Login"):
-    res = requests.post(f"{URL}/token", data={"username": username, "password": password})
-    if res.status_code == 200:
-        st.session_state["token"] = res.json()["access_token"]
-        st.sidebar.success("Logged in!")
-    else:
-        st.sidebar.error("Wrong login info")
-
-token = st.session_state.get("token")
-headers = {"Authorization": f"Bearer {token}"} if token else {}
+st.title("Smart Presence Tracker")
+st.subheader("Manage students presence, based on a simple database, Speech-to-Text technology.",
+              anchor="subtitle")
 
 
-# --- 1. LIST BOOKS ---
-st.subheader("📖 Books List")
-try:
-    res = requests.get(f"{URL}/books")
-    if res.status_code == 200:
-        for b in res.json():
-            st.write(f"**ID {b['id']}**: {b['title']} — *Author:* {b['author']['name']} ({'Offer!' if b['is_offer'] else 'Regular'})")
-except:
-    st.error("Server not connected.")
+# 1. Initialize DataFrames in session_state
+if "df" not in st.session_state:
+    st.session_state.df = pd.DataFrame(students)
 
+if "temp_df" not in st.session_state:
+    st.session_state.temp_df = st.session_state.df.copy()
+    st.session_state.temp_df["Today"] = ""
 
-st.divider()
+# 2. One unified Save function reading from st.session_state.temp_df
+def save():
+    today_values = st.session_state.temp_df["Today"].tolist()
+    for i, val in enumerate(today_values):
+        st.session_state.df.at[i, "presence"].append(val)
 
+    st.session_state.df.to_csv("temp_list.csv", index=False)
+    st.success("Saved!")
 
-# --- 2. ADD A BOOK ---
-st.subheader("➕ Add a Book")
-with st.form("add_form", clear_on_submit=True):
-    b_id = st.number_input("Book ID", min_value=1, value=5)
-    title = st.text_input("Title")
-    
-    st.write("--- Author Details ---")
-    a_id = st.number_input("Author ID", min_value=1, value=5)
-    a_name = st.text_input("Author Name")
-    a_mail = st.text_input("Author Email")
-    
-    is_offer = st.checkbox("Special Offer?")
-    
-    if st.form_submit_button("Add Book"):
-        if token:
-            payload = {
-                "id": b_id,
-                "title": title,
-                "author": {"id": a_id, "name": a_name, "mail": a_mail},
-                "is_offer": is_offer
-            }
-            res = requests.post(f"{URL}/books", json=payload, headers=headers)
-            if res.status_code in [200, 201]:
-                st.success("Book added!")
+# 3. Manual Mode vs Automatic Mode
+if manual := st.toggle("Manual mode"):
+    st.session_state.temp_df = st.data_editor(
+        st.session_state.temp_df,
+        width='stretch',
+        disabled=["id", "first_name", "last_name", "gender", "wilaya"],
+        column_config={
+            "Today": st.column_config.SelectboxColumn(
+                "Today",
+                options=["Absent", "Present"],
+                required=True,
+            ),
+        },
+        hide_index=True,
+    )
+
+else:
+    @st.fragment()
+    def auto_table():
+        audio_value = st.audio_input(
+        "🎙️ Enregistrez la présence (ex: 'Ahmed présent, Sara absente...')"
+         )
+
+        if audio_value is not None:
+            if st.button("⚡ Analyser l'audio", key="analyze_audio"):
+                with st.spinner("Transcription et remplissage du tableau..."):
+                    transcript, statuses = verify_presence(
+                        audio_value, st.session_state.temp_df
+                    )
+
+                    if transcript:
+                        st.info(f"**Texte compris :** {transcript}")
+                        st.session_state.temp_df["Today"] = statuses
+                        st.rerun()
+                    else:
+                        st.warning("Aucune voix détectée. Veuillez réessayer.")
+                            
+                if "last_transcript" in st.session_state:
+                    st.info(f"**Texte compris :** {st.session_state.last_transcript}")
+                    
+                save()
                 st.rerun()
-            else:
-                st.error(res.text)
-        else:
-            st.warning("Log in first from the sidebar!")
+
+        st.dataframe(
+            st.session_state.temp_df,
+            width='stretch',
+            hide_index=True,
+            column_config={
+                "id": st.column_config.TextColumn("ID"),
+                "first_name": st.column_config.TextColumn("First Name"),
+                "last_name": st.column_config.TextColumn("Last Name"),
+                "gender": st.column_config.TextColumn("Gender"),
+                "wilaya": st.column_config.TextColumn("Wilaya"),
+                "Today": st.column_config.TextColumn("Today"),
+            },
+        )
+
+    auto_table()
+
+
+if st.button("Save", key="global_save"):
+    save()
+else:
+    st.info("You can edit the table and click 'Save' to save the changes.")
+
+
+# 4. Display smmary metrics
+total = len(st.session_state.temp_df)
+present = (st.session_state.temp_df["Today"] == "Present").sum()
+not_marked = (st.session_state.temp_df["Today"] == "Not Marked").sum()
+absent = total - present - not_marked
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("👥 Total Students", total)
+col2.metric("✅ Present", present)
+col3.metric("❌ Absent", absent)
+col4.metric("❓ Not Marked", not_marked)
+
+
+
