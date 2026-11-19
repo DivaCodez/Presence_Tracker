@@ -1,7 +1,6 @@
 # 🎙️ Smart Presence Tracker
 
-[![STREAMLIT](https://shields.io)](https://streamlit.io)
-[![PYTHON](https://shields.io)](https://python.org)
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
 
 A simple tool to speed up taking student attendance using voice recognition and a Streamlit interface.
 
