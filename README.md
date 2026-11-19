@@ -20,6 +20,14 @@ Taking attendance manually takes time, especially with larger groups. I wanted t
 * **Manual mode:** Lets you switch to an editable table (`st.data_editor`) to fix any missed or misheard names before saving.
 * **Summary and CSV export:** Displays counts for `Total`, `Present`, `Absent`, and `Not Marked`, and saves the updated list to `temp_list.csv`.
 
+## ⚠️ Limitations
+
+* **Internet connection required:** Uses Google's free Speech-to-Text API (`recognize_google`), so transcription will not work offline.
+* **Name spelling variations:** Exact substring matching can miss names if the speech recognizer spells them slightly differently than in the database (e.g., *Kawtar* vs *Kaoutar*, *Yacine* vs *Yassine*).
+* **Duplicate first names:** If two students share the same first name and only the first name is spoken, the script matches the first occurrence in the list.
+* **Background noise:** Accuracy drops in noisy classrooms if the microphone is far from the speaker.
+* **Local CSV storage:** Attendance is saved to a local CSV file (`temp_list.csv`) rather than a persistent database.
+
 ## 🛠️ Files
 
 | File | Description |
