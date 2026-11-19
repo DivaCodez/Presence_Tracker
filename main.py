@@ -1,158 +1,81 @@
-import http
-from operator import index
-
-from fastapi import Depends, FastAPI, HTTPException 
-from pydantic import BaseModel, EmailStr
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+import os
+import unicodedata
+import speech_recognition as sr
+from gtts import gTTS
 
 
-app = FastAPI(
-	title="Mini Bookstore API",
-    description="Une API pour gérer des livres et des auteurs, documentée automatiquement.",
-    version="1.0.0"
-)
 
-
-books = [
-    {
-		"id": 1, "title": "The Great Gatsby", 
-		"author": {
-		 'id' : 1,
-		 "name": "F. Scott Fitzgerald",
-		 "mail": "scott@example.com"
-	 	}, 
-		"is_offer": True
-	},
-    {
-		"id": 2, 
-		"title": "1984", 
-		"author": {
-			"id" : 2,
-			"name": "George Orwell",
-			"mail": "orwell@example.com"
-		}, 
-		"is_offer": False},
-    {
-		"id": 3, 
-		"title": "To Kill a Mockingbird", 
-		"author": {
-			"id" : 3,
-			"name": "Harper Lee",
-			"mail": "lee@example.com"
-		}, 
-		"is_offer": False},
-    {
-		"id": 4, 
-		"title": "Pride and Prejudice", 
-		"author": {
-			"id" : 4,
-			"name": "Jane Austen",
-			"mail": "jane@example.com"
-		}, 
-		"is_offer": True
-	}
+students = [
+  { "id": 1, "first_name": "Karim", "last_name": "Benali", "gender": "M", "wilaya": "Alger", "presence": [] },
+  { "id": 2, "first_name": "Amel", "last_name": "Rahmani", "gender": "F", "wilaya": "Oran", "presence": [] },
+  { "id": 3, "first_name": "Ahmed", "last_name": "Bouaziz", "gender": "M", "wilaya": "Constantine", "presence": [] },
+  { "id": 4, "first_name": "Nadia", "last_name": "Bensalem", "gender": "F", "wilaya": "Annaba", "presence": [] },
+  { "id": 5, "first_name": "Sofiane", "last_name": "Mansouri", "gender": "M", "wilaya": "Tlemcen", "presence": [] },
+  { "id": 6, "first_name": "Yasmine", "last_name": "Khelifi", "gender": "F", "wilaya": "Batna", "presence": [] },
+  { "id": 7, "first_name": "Rachid", "last_name": "Belkacem", "gender": "M", "wilaya": "Sétif", "presence": [] },
+  { "id": 8, "first_name": "Leila", "last_name": "Boudiaf", "gender": "F", "wilaya": "Tizi Ouzou", "presence": [] },
 ]
 
-# Pydantic test
-class Author (BaseModel):
-    id : int
-    name : str | None
-    mail : EmailStr | None
 
-class Book (BaseModel):
-	id : int
-	title : str
-	author : Author
-	is_offer : bool = False
+# 1- Function to normalize text for comparison
+def normalize(text):
+    text = text.lower()
+    return "".join(
+        c
+        for c in unicodedata.normalize("NFD", text)
+        if unicodedata.category(c) != "Mn"
+    )
 
-
-
-
-# Authentication
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-USER_DB = {"admin": "secret123"}
-
-@app.post("/token", tags=["Auth"])
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    password = USER_DB.get(form_data.username)
-    
-    if not password or form_data.password != password:
-        raise HTTPException(
-            status_code=http.HTTPStatus.UNAUTHORIZED,
-            detail="Identifiants incorrects",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    return {"access_token": form_data.username, "token_type": "bearer"}
-
-
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    if token != "admin":
-        raise HTTPException(
-            status_code=http.HTTPStatus.UNAUTHORIZED,
-            detail="Jeton invalide ou expiré",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return token
+def speak(text):
+    tts = gTTS(text=text, lang="fr")
+    tts.save("temp_audio.mp3")
+    os.system("start temp_audio.mp3") 
+    os.remove("temp_audio.mp3")
 
 
 
+# 2- Verify the presence of students based on audio input.
+def verify_presence(audio_bytes, df_students):
+    recognizer = sr.Recognizer()
+    recognizer.dynamic_energy_threshold = True
+    recognizer.pause_threshold = 0.8
 
-# Books endpoints
-@app.get("/books")
-def get_books():
-	return books
+    with sr.AudioFile(audio_bytes) as source:
+        audio_data = recognizer.record(source)
 
-@app.post("/books")
-def create_book(book : Book, current_user: str = Depends(get_current_user)):
-	if book:
-		books.append(book.model_dump())
-		raise HTTPException(status_code=201, detail="Book created successfully")
-	else:
-		raise HTTPException(status_code=400, detail="Invalid book data")
+    try:
+        transcript = recognizer.recognize_google(audio_data, language="fr-algeria")
+    except sr.UnknownValueError:
+        speak("I couldn't understand what you said.")
+        return "", ["Not Marked"] * len(df_students)
+    except sr.RequestError as e:
+        raise RuntimeError(f"Erreur du service Google Speech : {e}")
+
+    text = normalize(transcript)
+    statuses = []
+
+    for _, student in df_students.iterrows():
+        first = normalize(str(student["first_name"]))
+        last = normalize(str(student["last_name"]))
+        full = f"{first} {last}"
+
+        pos = text.find(full)
+        if pos == -1:
+            pos = text.find(last)
+        if pos == -1:
+            pos = text.find(first)
+
+        if pos != -1:
+            window = text[pos : pos + len(full) + 15]
+            if any(w in window for w in ["absent", "absente", "non", "no"]):
+                statuses.append("Absent")
+            elif any(w in window for w in ["present", "presente", "oui", "ici", "yes", "here"]):
+                statuses.append("Present")
+            else:
+                statuses.append("Not Marked")
+        else:
+            statuses.append("Not Marked")
+
+    return transcript, statuses
 
 
-@app.get("/books/{id_book}")
-def get_book(id_book : int):
-	if id_book < 1 or id_book > len(books):
-		raise HTTPException(status_code=400, detail="Invalid book ID")
-	for book in books:
-		if book['id'] == id_book:
-			return book
-		raise HTTPException(status_code=404, detail="Book no found")
-
-	
-@app.put("/books/{id_book}")
-def update_book(id_book : int, updated_book : Book,current_user: str = Depends(get_current_user)):	
-	if id_book < 1 or id_book > len(books):
-		raise HTTPException(status_code=400, detail="Invalid book ID")
-	#book = updated_book.model_dump()
-	for book in books:
-		if updated_book.id == id_book:
-			book['title'] = updated_book.title
-			book['author'] = updated_book.author
-			book['is_offer'] = updated_book.is_offer
-			index = books.index(book)
-			raise HTTPException(status_code=200, detail="Book updated successfully")
-	raise HTTPException(status_code=404, detail="Book no found")
-
-	
-@app.delete("/books/{id_book}")
-def delete_book(id_book : int, current_user: str = Depends(get_current_user)):
-	if id_book < 1 or id_book > len(books):
-		raise HTTPException(status_code=400, detail="Invalid book ID")
-	for book in books:
-		if book['id'] == id_book:
-			books.remove(book)
-			raise HTTPException(status_code=200, detail="Book deleted successfully")
-	raise HTTPException(status_code=404, detail="Book no found")
-
-    
-@app.get("/authors")
-def get_author(id_author : int):
-	if id_author:
-		for book in books:
-			if book['author']['id'] == id_author:
-				return book['author']
-		raise HTTPException(status_code=404, detail="Author no found")
-	raise HTTPException(status_code=400, detail="Invalid author ID")
