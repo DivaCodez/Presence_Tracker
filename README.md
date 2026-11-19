@@ -15,7 +15,7 @@ Taking attendance manually takes time, especially with larger groups. I wanted t
 
 ## 🧠 Features
 
-* **Voice attendance:** Record a single audio clip in the browser and transcribe it with `SpeechRecognition` (French `fr-FR`).
+* **Voice attendance:** Record a single audio clip in the browser and transcribe it with `SpeechRecognition` (French `fr-algeria`).
 * **Name and status matching:** Normalizes text and looks near each student's name for keywords (`présent`, `absent`, `oui`, `non`).
 * **Manual mode:** Lets you switch to an editable table (`st.data_editor`) to fix any missed or misheard names before saving.
 * **Summary and CSV export:** Displays counts for `Total`, `Present`, `Absent`, and `Not Marked`, and saves the updated list to `temp_list.csv`.
